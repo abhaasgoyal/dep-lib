@@ -7,10 +7,11 @@ import           DepParser
 import           System.Environment
 import           System.Exit
 
+-- | Error types
 data Error =
-    InvalidParam
-  | CircularDependency
-  | InvalidInput
+    InvalidArgs -- ^ Invalid arguments
+  | CircularDependency -- ^ Input is not a DAG
+  | InvalidInputFile -- ^ Error parsing input file
   deriving (Eq)
 
 -- | Driver function
@@ -18,18 +19,19 @@ main :: IO ()
 main = do
   -- Get arguments
   args <- getArgs
-  when (length args /= 1) $ handleError InvalidParam
+  when (length args /= 1) $ handleError InvalidArgs
 
   -- Read file
   content <- map words . lines <$> readFile (head args)
-  when (checkDependsOn content) $ handleError InvalidInput
+  when (checkDependsOn content) $ handleError InvalidInputFile
 
   -- Construct Graph
   let dependencyList   = extractDeps content
   let inputDepOrder    = map fst dependencyList
   let constructedGraph = foldr addDeps M.empty dependencyList
 
-  -- cyclicCheck TODO
+  -- Checking whether input is acyclic
+  when (cyclicCheck constructedGraph) $ handleError CircularDependency
 
   -- Print result
   mapM_
@@ -43,11 +45,9 @@ handleError err = do
   exitSuccess
  where
   errorList =
-    [ (InvalidParam, "Usage: stack exec dep-lib <filename>")
-    , (InvalidInput, "Error while parsing the file")
-    , ( CircularDependency
-      , "A dependency conflict present in the input (cyclic dependency)"
-      )
+    [ (InvalidArgs       , "Usage: stack exec dep-lib <filename>")
+    , (InvalidInputFile  , "Error while parsing the file")
+    , (CircularDependency, "A cyclic dependency conflict present in the input")
     ]
 
 -- | Print back final result
