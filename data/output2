@@ -1,0 +1,4 @@
+Y depends on A B Q R S Z
+A depends on Q R S
+X depends on A B Q R S Y Z
+Z depends on A B Q R S
