@@ -1,6 +1,6 @@
 module DepParser
-  ( deleteNode
-  , checkLeaves
+  ( deleteLeaf
+  , checkLeafExists
   , cyclicCheck
   , addDeps
   , makeDependenciesList
@@ -19,6 +19,10 @@ import qualified Data.Map as M
                            , notMember
                            , null
                            , size
+                           , fromList
+                           , empty
+                           , findMin
+                           , delete
                            )
 import qualified Data.Set as S
                            ( Set
@@ -28,6 +32,7 @@ import qualified Data.Set as S
                            , toList
                            , union
                            , unions
+                           , fromList
                            )
 
 -- | Dependency from single parent to multiple children
@@ -44,25 +49,31 @@ Cyclic graph check through topological sort (DFS)
 --}
 
 -- | Delete minimum node value in graph and remove from adjacency lists
-deleteNode :: Graph -> Graph
-deleteNode g = M.map (S.delete k) deleted_g
-  where ((k, _), deleted_g) = M.deleteFindMin g
+-- Predicate - Atleast 1 leaf node is present
+deleteLeaf :: Graph -> Graph
+deleteLeaf g
+  | null g = M.empty
+  | otherwise = M.map (S.delete k) (M.delete k g)
+  where (k, _) = M.findMin (M.filter S.null g) -- delete with condition of left node
 
-checkLeaves :: Graph -> Bool
-checkLeaves graph = M.size (M.filter S.null graph) > 0
+checkLeafExists :: Graph -> Bool
+checkLeafExists graph = M.size (M.filter S.null graph) > 0
 
 cyclicCheck :: Graph -> Bool
 cyclicCheck g | M.null g      = False
-              | checkLeaves g = True
-              | otherwise     = cyclicCheck $ deleteNode g
+              | not $ checkLeafExists g = True
+              | otherwise     = cyclicCheck $ deleteLeaf g
 
 --------------------------------
 
 -- | Add nodes to graph
 addDeps :: Dependencies -> Graph -> Graph
-addDeps = uncurry . M.insertWith $ flip S.union
+addDeps deps@(_,v) g = uncurry (M.insertWith $ flip S.union) deps new_g
+  where
+    new_g = foldr (\i -> M.insertWith S.union i S.empty) g (S.toList v)
 
 -- | Use adjacency sets to make the dependency list required for assignment
+-- Precondition : input must be DAG
 makeDependenciesList :: Graph -> String -> S.Set String
 makeDependenciesList graph par
   | M.notMember par graph = S.empty

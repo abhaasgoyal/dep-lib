@@ -31,6 +31,17 @@ tests = testGroup
       , testCase "input3" $ testMakeDependenciesList inputGraph3 @?= outputGraph3
       , testCase "input4" $ testMakeDependenciesList inputGraph4 @?= outputGraph4
       ]
+  ,
+    testGroup
+      "testCyclicCheck"
+      [ testCase "input1" $ cyclicCheck inputGraph1 @?= False
+      , testCase "input2" $ cyclicCheck inputGraph2 @?= False
+      , testCase "input3" $ cyclicCheck inputGraph3 @?= False
+      , testCase "input4" $ cyclicCheck inputGraph4 @?= False
+      , testCase "inputCycle1" $ cyclicCheck inputCycle1 @?= True
+      , testCase "inputCycle2" $ cyclicCheck inputCycle2 @?= True
+      , testCase "inputCycle3" $ cyclicCheck inputCycle3 @?= True
+      ]
   ]
 
 testMakeDependenciesList :: Graph -> Graph
@@ -55,6 +66,9 @@ inputGraph3 = makeTestGraph
   , ("F", ["H"])
   ]
 
+inputGraph4 :: Graph
+inputGraph4 = makeTestGraph []
+
 outputGraph1 :: Graph
 outputGraph1 = makeTestGraph [("X", ["Y", "R", "Z"]), ("Y", ["Z"])]
 
@@ -76,11 +90,27 @@ outputGraph3 = makeTestGraph
   , ("F", ["H"])
   ]
 
-inputGraph4 :: Graph
-inputGraph4 = makeTestGraph []
-
 outputGraph4 :: Graph
 outputGraph4 = makeTestGraph []
 
+-- These graphs are known to be acyclic
+inputCycle1 :: Graph
+inputCycle1 = makeTestGraph [("X", ["Y"]), ("Y", ["X"])]
+
+inputCycle2 :: Graph
+inputCycle2 = makeTestGraph
+  [("Y", ["Z"]), ("A", ["Q", "R", "S", "Z"]), ("X", ["Y"]), ("Z", ["A", "B"])]
+
+
+inputCycle3 :: Graph
+inputCycle3 = makeTestGraph
+  [ ("A", ["B", "C"])
+  , ("B", ["C", "E"])
+  , ("C", ["G"])
+  , ("D", ["A", "F"])
+  , ("E", ["F", "D"]) -- D acts as cycle component
+  , ("F", ["H"])
+  ]
+
 makeTestGraph :: [(String, [String])] -> Graph
-makeTestGraph = M.fromList . map (fmap S.fromList)
+makeTestGraph = foldr (\(x,y) g -> addDeps (x, S.fromList y) g) M.empty
