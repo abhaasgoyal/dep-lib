@@ -1,13 +1,37 @@
-module DepParser where
+module DepParser
+  ( deleteNode
+  , checkLeaves
+  , cyclicCheck
+  , addDeps
+  , makeDependenciesList
+  , Dependencies
+  , Graph
+  ) where
 
-import qualified Data.Map                      as M
-import qualified Data.Set                      as S
+-- | Usage of map and set data structures to form adjacency sets
+import qualified Data.Map as M
+                           ( (!)
+                           , Map
+                           , deleteFindMin
+                           , filter
+                           , insertWith
+                           , map
+                           , notMember
+                           , null
+                           , size
+                           )
+import qualified Data.Set as S
+                           ( Set
+                           , delete
+                           , empty
+                           , null
+                           , toList
+                           , union
+                           , unions
+                           )
 
 -- | Dependency from single parent to multiple children
 type Dependencies = (String, S.Set String)
-
--- | Dependency from single parent to single child
-type Dependency = (String, String)
 
 -- | Graph structure through adjacency sets
 type Graph = M.Map String (S.Set String)
@@ -38,7 +62,7 @@ cyclicCheck g | M.null g      = False
 addDeps :: Dependencies -> Graph -> Graph
 addDeps = uncurry . M.insertWith $ flip S.union
 
--- | Use adjacency sets to make a
+-- | Use adjacency sets to make the dependency list required for assignment
 makeDependenciesList :: Graph -> String -> S.Set String
 makeDependenciesList graph par
   | M.notMember par graph = S.empty
@@ -47,14 +71,3 @@ makeDependenciesList graph par
     (S.unions $ map (makeDependenciesList graph) (S.toList neighbourList))
   where neighbourList = graph M.! par
 
--- | Check whether the string "depends on" appears on correct location
-checkDependsOn :: [[String]] -> Bool
-checkDependsOn = all helpCheckDepend
- where
-  helpCheckDepend :: [String] -> Bool
-  helpCheckDepend s | (s !! 1) ++ (s !! 2) == "depends on" = True
-                    | otherwise                            = False
-
--- | Model dependencies read from the file
-extractDeps :: [[String]] -> [Dependencies]
-extractDeps = map (\s -> (head s, S.fromList $ drop 3 s))

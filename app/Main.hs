@@ -1,11 +1,20 @@
 module Main where
-import           Control.Monad
+import           Control.Monad                  ( when )
 import qualified Data.Map                      as M
-import           Data.Maybe
+                                                ( empty )
+import           Data.Maybe                     ( fromJust )
 import qualified Data.Set                      as S
-import           DepParser
-import           System.Environment
-import           System.Exit
+                                                ( toList )
+import           DepParser                      ( addDeps
+                                                , cyclicCheck
+                                                , makeDependenciesList
+                                                )
+import           FileHandlers                   ( checkInput
+                                                , extractDepsFromFile
+                                                , printOutput
+                                                )
+import           System.Environment             ( getArgs )
+import           System.Exit                    ( exitSuccess )
 
 -- | Error types
 data Error =
@@ -23,19 +32,19 @@ main = do
 
   -- Read file
   content <- map words . lines <$> readFile (head args)
-  when (checkDependsOn content) $ handleError InvalidInputFile
+  when (checkInput content) $ handleError InvalidInputFile
 
-  -- Construct Graph
-  let dependencyList   = extractDeps content
+  -- Parse file to create intermediate Graph representation
+  let dependencyList   = extractDepsFromFile content
   let inputDepOrder    = map fst dependencyList
   let constructedGraph = foldr addDeps M.empty dependencyList
 
-  -- Checking whether input is acyclic
+  -- Checking whether constructed graph is acyclic
   when (cyclicCheck constructedGraph) $ handleError CircularDependency
 
   -- Print result
   mapM_
-    (\i -> printBack i $ S.toList $ makeDependenciesList constructedGraph i)
+    (\i -> printOutput i $ S.toList $ makeDependenciesList constructedGraph i)
     inputDepOrder
 
 -- | Error handler
@@ -49,8 +58,3 @@ handleError err = do
     , (InvalidInputFile  , "Error while parsing the file")
     , (CircularDependency, "A cyclic dependency conflict present in the input")
     ]
-
--- | Print back final result
-printBack :: String -> [String] -> IO ()
-printBack parentDep childDep = do
-  putStrLn $ parentDep ++ " depends on " ++ unwords childDep

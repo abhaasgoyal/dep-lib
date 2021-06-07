@@ -49,3 +49,5 @@ tests:
     dependencies:
     - dep-lib
     - containers
+    - tasty
+    - tasty-hunit
