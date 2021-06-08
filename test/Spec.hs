@@ -25,27 +25,30 @@ tests :: TestTree
 tests = testGroup
   "Unit Tests"
   [ testGroup
-      "testMakeDependenciesList"
-      [ testCase "input1" $ testMakeDependenciesList inputGraph1 @?= outputGraph1
-      , testCase "input2" $ testMakeDependenciesList inputGraph2 @?= outputGraph2
-      , testCase "input3" $ testMakeDependenciesList inputGraph3 @?= outputGraph3
-      , testCase "input4" $ testMakeDependenciesList inputGraph4 @?= outputGraph4
-      ]
-  ,
-    testGroup
-      "testCyclicCheck"
-      [ testCase "input1" $ cyclicCheck inputGraph1 @?= False
-      , testCase "input2" $ cyclicCheck inputGraph2 @?= False
-      , testCase "input3" $ cyclicCheck inputGraph3 @?= False
-      , testCase "input4" $ cyclicCheck inputGraph4 @?= False
-      , testCase "inputCycle1" $ cyclicCheck inputCycle1 @?= True
-      , testCase "inputCycle2" $ cyclicCheck inputCycle2 @?= True
-      , testCase "inputCycle3" $ cyclicCheck inputCycle3 @?= True
-      ]
+    "testMakeDependenciesList"
+    [ testCase "input1" $ testMakeDependenciesList inputGraph1 @?= outputGraph1
+    , testCase "input2" $ testMakeDependenciesList inputGraph2 @?= outputGraph2
+    , testCase "input3" $ testMakeDependenciesList inputGraph3 @?= outputGraph3
+    , testCase "input4" $ testMakeDependenciesList inputGraph4 @?= outputGraph4
+    ]
+  , testGroup
+    "testCyclicCheck"
+    [ testCase "input1" $ cyclicCheck inputGraph1 @?= Nothing
+    , testCase "input2" $ cyclicCheck inputGraph2 @?= Nothing
+    , testCase "input3" $ cyclicCheck inputGraph3 @?= Nothing
+    , testCase "input4" $ cyclicCheck inputGraph4 @?= Nothing
+    , testCase "inputCycle1" $ cyclicCheck inputCycle1 @?= Just
+      (makeTestGraph [("X", ["Y"]), ("Y", ["X"])])
+    , testCase "inputCycle2" $ cyclicCheck inputCycle2 @?= Just
+      (makeTestGraph [("A", ["Z"]), ("X", ["Y"]), ("Y", ["Z"]), ("Z", ["A"])])
+    , testCase "inputCycle3" $ cyclicCheck inputCycle3 @?= Just
+      (makeTestGraph [("A", ["B"]), ("B", ["E"]), ("D", ["A"]), ("E", ["D"])])
+    ]
   ]
 
 testMakeDependenciesList :: Graph -> Graph
-testMakeDependenciesList graph = M.mapWithKey (const . makeDependenciesList graph) graph
+testMakeDependenciesList graph =
+  M.mapWithKey (const . makeDependenciesList graph) graph
 
 -- These graphs are known to be acyclic
 inputGraph1 :: Graph
@@ -113,4 +116,4 @@ inputCycle3 = makeTestGraph
   ]
 
 makeTestGraph :: [(String, [String])] -> Graph
-makeTestGraph = foldr (\(x,y) g -> addDeps (x, S.fromList y) g) M.empty
+makeTestGraph = foldr (\(x, y) g -> addDeps (x, S.fromList y) g) M.empty

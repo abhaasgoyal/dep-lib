@@ -2,10 +2,15 @@ module Main where
 import           Control.Monad                  ( when )
 import qualified Data.Map                      as M
                                                 ( empty )
-import           Data.Maybe                     ( fromJust )
+import qualified Data.Map.Internal.Debug       as Md
+                                                ( showTreeWith )
+import           Data.Maybe                     ( fromJust
+                                                , isJust
+                                                )
 import qualified Data.Set                      as S
                                                 ( toList )
-import           DepParser                      ( addDeps
+import           DepParser                      ( Graph
+                                                , addDeps
                                                 , cyclicCheck
                                                 , makeDependenciesList
                                                 )
@@ -14,12 +19,12 @@ import           FileHandlers                   ( checkInput
                                                 , printOutput
                                                 )
 import           System.Environment             ( getArgs )
-import           System.Exit                    ( exitSuccess )
+import           System.Exit                    ( exitSuccess, exitFailure )
 
 -- | Error types
 data Error =
     InvalidArgs -- ^ Invalid arguments
-  | CircularDependency -- ^ Input is not a DAG
+  | CircularDependency Graph -- ^ Input is not a DAG
   | InvalidInputFile -- ^ Error parsing input file
   deriving (Eq)
 
@@ -40,21 +45,24 @@ main = do
   let constructedGraph = foldr addDeps M.empty dependencyList
 
   -- Checking whether constructed graph is acyclic
-  when (cyclicCheck constructedGraph) $ handleError CircularDependency
+  let potentialCycles  = cyclicCheck constructedGraph
+  when (isJust potentialCycles)
+    $ handleError (CircularDependency $ fromJust potentialCycles)
 
   -- Print result
   mapM_
-    (\i -> printOutput i $ S.toList $ makeDependenciesList constructedGraph i)
+    (\i -> printOutput i . S.toList $ makeDependenciesList constructedGraph i)
     inputDepOrder
+
+  exitSuccess
 
 -- | Error handler
 handleError :: Error -> IO ()
 handleError err = do
-  putStrLn . fromJust $ lookup err errorList
-  exitSuccess
- where
-  errorList =
-    [ (InvalidArgs       , "Usage: stack exec dep-lib <filename>")
-    , (InvalidInputFile  , "Error while parsing the file")
-    , (CircularDependency, "A cyclic dependency conflict present in the input")
-    ]
+  putStrLn $ case err of
+    InvalidArgs      -> "Usage: stack exec dep-lib <filename>"
+    InvalidInputFile -> "Error while parsing the file"
+    CircularDependency graph ->
+      "A cyclic dependency conflict present.\nDebugger found the following circular graph\n\n"
+        ++ Md.showTreeWith (\k x -> show (k, S.toList x)) True True graph
+  exitFailure
