@@ -1,6 +1,6 @@
+{-# LANGUAGE TupleSections #-}
 module DepParser
-  (
-    cyclicCheck
+  ( cyclicCheck
   , addDeps
   , makeDependenciesList
   , Dependencies
@@ -20,6 +20,8 @@ import qualified Data.Map as M
                            , notMember
                            , null
                            , size
+                           , fromList
+                           , unionWith
                            )
 import qualified Data.Set as S
                            ( Set
@@ -44,27 +46,31 @@ Cyclic graph check through topological sort (DFS)
 
 --}
 
--- | Delete minimum node value in graph and remove from adjacency lists
+-- | Delete minimum leaf node value in graph and remove from adjacency lists
 -- Precondition - Atleast 1 leaf node is present
-deleteLeaf :: Graph -> Graph
-deleteLeaf g | null g    = M.empty
-             | otherwise = M.map (S.delete k) (M.delete k g)
+deleteMinLeaf :: Graph -> Graph
+deleteMinLeaf g | null g    = M.empty
+                | otherwise = M.map (S.delete k) (M.delete k g)
   where (k, _) = M.findMin (M.filter S.null g) -- delete with condition of left node
 
-checkLeafExists :: Graph -> Bool
-checkLeafExists graph = M.size (M.filter S.null graph) > 0
+-- | Check whether any leaf node exists
+checkLeavesExists :: Graph -> Bool
+checkLeavesExists graph = M.size (M.filter S.null graph) > 0
 
+-- | Check if cycles are present
 cyclicCheck :: Graph -> Maybe Graph
 cyclicCheck g | M.null g                = Nothing
-              | not $ checkLeafExists g = Just g
-              | otherwise               = cyclicCheck $ deleteLeaf g
+              | not $ checkLeavesExists g = Just g
+              | otherwise               = cyclicCheck $ deleteMinLeaf g
 
 --------------------------------
 
 -- | Add nodes to graph
 addDeps :: Dependencies -> Graph -> Graph
-addDeps deps@(_, v) g = uncurry (M.insertWith $ flip S.union) deps new_g
-  where new_g = foldr (\i -> M.insertWith S.union i S.empty) g (S.toList v)
+addDeps deps@(_, v) g = uncurry (M.insertWith S.union) deps new_g
+  where
+    emptyNodes = M.fromList $ (,S.empty) <$> S.toList v
+    new_g = M.unionWith S.union g emptyNodes
 
 -- | Use adjacency sets to make the dependency list required
 -- using DFS
