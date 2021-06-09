@@ -2,36 +2,15 @@
 module DepParser
   ( cyclicCheck
   , addDeps
-  , makeDependenciesList
+  , makeDepList
+  , makeDepGraph
   , Dependencies
   , Graph
   ) where
 
 -- | Usage of map and set data structures to form adjacency sets
-import qualified Data.Map as M
-                           ( (!)
-                           , Map
-                           , delete
-                           , empty
-                           , filter
-                           , findMin
-                           , insertWith
-                           , map
-                           , notMember
-                           , null
-                           , size
-                           , fromList
-                           , unionWith
-                           )
-import qualified Data.Set as S
-                           ( Set
-                           , delete
-                           , empty
-                           , null
-                           , toList
-                           , union
-                           , unions
-                           )
+import qualified Data.Map                      as M
+import qualified Data.Set                      as S
 
 -- | Dependency from single parent to multiple children
 type Dependencies = (String, S.Set String)
@@ -59,27 +38,31 @@ checkLeavesExists graph = M.size (M.filter S.null graph) > 0
 
 -- | Check if cycles are present
 cyclicCheck :: Graph -> Maybe Graph
-cyclicCheck g | M.null g                = Nothing
+cyclicCheck g | M.null g                  = Nothing
               | not $ checkLeavesExists g = Just g
-              | otherwise               = cyclicCheck $ deleteMinLeaf g
+              | otherwise                 = cyclicCheck $ deleteMinLeaf g
 
 --------------------------------
 
 -- | Add nodes to graph
 addDeps :: Dependencies -> Graph -> Graph
 addDeps deps@(_, v) g = uncurry (M.insertWith S.union) deps new_g
-  where
-    emptyNodes = M.fromList $ (,S.empty) <$> S.toList v
-    new_g = M.unionWith S.union g emptyNodes
+ where
+  emptyNodes = M.fromList $ (, S.empty) <$> S.toList v
+  new_g      = M.unionWith S.union g emptyNodes
+
+
+-- | Generate input dependency graph
+makeDepGraph :: [Dependencies] -> Graph
+makeDepGraph = foldr addDeps M.empty
 
 -- | Use adjacency sets to make the dependency list required
 -- using DFS
+-- Generate output dependency list (based on input key)
 -- Precondition : input must be DAG
-makeDependenciesList :: Graph -> String -> S.Set String
-makeDependenciesList graph par
-  | M.notMember par graph = S.empty
-  | otherwise = S.union
+makeDepList :: Graph -> String -> S.Set String
+makeDepList graph par = case M.lookup par graph of
+  Nothing            -> S.empty
+  Just neighbourList -> S.union
     neighbourList
-    (S.unions $ map (makeDependenciesList graph) (S.toList neighbourList))
-  where neighbourList = graph M.! par
-
+    (S.unions $ map (makeDepList graph) (S.toList neighbourList))

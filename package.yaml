@@ -25,6 +25,7 @@ library:
   source-dirs: src
   dependencies:
     - containers
+    - text
 
 executables:
   dep-lib-exe:
@@ -37,6 +38,7 @@ executables:
     dependencies:
     - dep-lib
     - containers
+    - text
 
 tests:
   dep-lib-test:
@@ -52,3 +54,4 @@ tests:
     - tasty
     - tasty-hunit
     - random
+    - text

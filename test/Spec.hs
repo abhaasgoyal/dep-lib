@@ -2,27 +2,18 @@ module Main where
 
 import           Control.Monad
 import           Data.Foldable                  ( traverse_ )
+import           Data.Map                       ( Map )
 import qualified Data.Map                      as M
-                                                ( empty
-                                                , fromList
-                                                , insert
-                                                , insertWith
-                                                , mapWithKey
-                                                )
+import           Data.Set                       ( Set )
 import qualified Data.Set                      as S
-                                                ( empty
-                                                , fromList
-                                                , union
-                                                )
 import           DepParser                      ( Dependencies
                                                 , Graph
                                                 , addDeps
                                                 , cyclicCheck
-                                                , makeDependenciesList
+                                                , makeDepList
                                                 )
-import           FileHandlers                   ( checkInput
-                                                , extractDepsFromFile
-                                                )
+import           ErrorHandling                  ( Error(..) )
+import           FileHandlers                   ( parseInput )
 import           System.Exit                    ( exitFailure )
 import           System.Random                  ( StdGen
                                                 , newStdGen
@@ -88,25 +79,26 @@ tests = testGroup
     ]
   , testGroup
     "testInput"
-    [ testCase "input1" $ checkInput [["H", "depends", "on", "A"]] @?= True
-    , testCase "input2" $ checkInput [["incorrect", "input"]] @?= False
-    , -- Treat as (H,[]) in mapping instead of throwing error
-      testCase "input3" $ checkInput [["H", "depends", "on"]] @?= True
-    , testCase "input4" $ checkInput [["H", "depending", "on", "A"]] @?= False
-    , testCase "input5" $ checkInput [["H", "depending", "A"]] @?= False
-    ]
-  , testGroup
-    "extractDepsFromFile"
-    [ testCase "input1"
-    $   extractDepsFromFile [["H", "depends", "on", "A"]]
-    @?= [("H", S.fromList ["A"])]
+    [ testCase "input1" $ parseInput [["H", "depends", "on", "A"]] @?= Right
+      [("H", S.fromList ["A"])]
     , testCase "input2"
-    $   extractDepsFromFile [["H", "depends", "on", "A", "B"]]
-    @?= [("H", S.fromList ["A", "B"])]
-    , testCase "input3"
-    $   extractDepsFromFile
-          [["X", "depends", "on", "Y"], ["Y", "depends", "on", "X"]]
-    @?= [("X", S.fromList ["Y"]), ("Y", S.fromList ["X"])]
+    $   parseInput [["incorrect", "input"]]
+    @?= Left InvalidInputFile
+    , -- Treat as (H,[]) in mapping instead of throwing error
+      testCase "input3" $ parseInput [["H", "depends", "on"]] @?= Right
+      [("H", S.fromList [])]
+    , testCase "input4"
+    $   parseInput [["H", "depending", "on", "A"]]
+    @?= Left InvalidInputFile
+    , testCase "input5"
+    $   parseInput [["H", "depending", "A"]]
+    @?= Left InvalidInputFile
+    , testCase "input6"
+    $   parseInput [["H", "depends", "on", "A", "B"]]
+    @?= Right [("H", S.fromList ["A", "B"])]
+    , testCase "input7"
+    $   parseInput [["X", "depends", "on", "Y"], ["Y", "depends", "on", "X"]]
+    @?= Right [("X", S.fromList ["Y"]), ("Y", S.fromList ["X"])]
     ]
   , testCase "Stress Tests" $ do
     stressTests 300 100
@@ -114,7 +106,7 @@ tests = testGroup
 
 testMakeDependenciesList :: Graph -> Graph
 testMakeDependenciesList graph =
-  M.mapWithKey (const . makeDependenciesList graph) graph
+  M.mapWithKey (const . makeDepList graph) graph
 
 -- These graphs are known to be acyclic
 inputGraph1 :: Graph
@@ -185,12 +177,12 @@ inputCycle3 = makeTestGraph
 makeTestGraph :: [(String, [String])] -> Graph
 makeTestGraph = foldr (\(x, y) g -> addDeps (x, S.fromList y) g) M.empty
 
--- | Stress testing cyclicCheck and makeDependenciesList (the most heavy usage)
+-- | Stress testing cyclicCheck and makeDepList (the most heavy usage)
 stressTests :: Int -> Int -> IO ()
 stressTests iterations n_nodes = do
-  replicateM_ iterations (fmap cyclicCheck $ randomDAG n_nodes)
-  replicateM_ iterations (fmap testMakeDependenciesList $ randomDAG n_nodes)
-  return ()
+  replicateM_ iterations $ cyclicCheck <$> randomDAG n_nodes
+  replicateM_ iterations $ testMakeDependenciesList <$> randomDAG n_nodes
+  pure ()
 
 
 ----- Tests helper functions
@@ -198,7 +190,6 @@ stressTests iterations n_nodes = do
 -- | Generate random DAG based on maximum nodes/ children
 randomDAG :: Int -> IO Graph
 randomDAG n_nodes = do
-  a            <- randNodeName
   n_nodes_seed <- newStdGen
 
   let generated_nodes = node_gen n_nodes n_nodes_seed
@@ -208,7 +199,7 @@ randomDAG n_nodes = do
   -- Using property of DAG of ascending order dependencies
   let finalGraph = map (\(p, c_list) -> (p, filter (> p) c_list))
                        (zip node_names potential_node_children)
-  return $ makeTestGraph finalGraph
+  pure $ makeTestGraph finalGraph
 
 -- | Generate n nodes
 node_gen :: Int -> StdGen -> IO [String]
@@ -221,4 +212,4 @@ randNodeName :: IO String
 randNodeName = do
   seed <- newStdGen
   -- Node names are 2 letters long
-  return (take 2 $ randomRs ('a', 'z') $ seed :: [Char])
+  pure (take 2 $ randomRs ('a', 'z') $ seed :: [Char])

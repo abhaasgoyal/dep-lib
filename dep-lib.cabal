@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0beece8c2a769bad43d43d26a3530771636ae87d71e51da2e119289b2379283d
+-- hash: d3450f2fca7cdf9936062b469131ee5d46ed9f58f59fad896eee87715a355a0b
 
 name:           dep-lib
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 library
   exposed-modules:
       DepParser
+      ErrorHandling
       FileHandlers
   other-modules:
       Paths_dep_lib
@@ -35,6 +36,7 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
+    , text
   default-language: Haskell2010
 
 executable dep-lib-exe
@@ -48,6 +50,7 @@ executable dep-lib-exe
       base >=4.7 && <5
     , containers
     , dep-lib
+    , text
   default-language: Haskell2010
 
 test-suite dep-lib-test
@@ -65,4 +68,5 @@ test-suite dep-lib-test
     , random
     , tasty
     , tasty-hunit
+    , text
   default-language: Haskell2010

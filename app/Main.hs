@@ -1,77 +1,58 @@
 module Main where
-import           Control.Monad                  ( when, unless )
-import qualified Data.Map                      as M
-import qualified Data.Map.Internal.Debug       as Md
-import           Data.Maybe                     ( fromJust
-                                                , isJust
-                                                )
+import           Data.Foldable                  ( for_ )
 import qualified Data.Set                      as S
-import           DepParser                      ( Graph
+import qualified Data.Text                     as T
+import           DepParser                      ( Dependencies
+                                                , Graph
                                                 , addDeps
                                                 , cyclicCheck
-                                                , makeDependenciesList
+                                                , makeDepGraph
+                                                , makeDepList
                                                 )
-import           FileHandlers                   ( checkInput
-                                                , extractDepsFromFile
+import           ErrorHandling
+import           FileHandlers                   ( parseInput
                                                 , printOutput
                                                 )
 import           System.Environment             ( getArgs )
-import           System.Exit                    ( exitFailure
-                                                , exitSuccess
-                                                )
--- | Error types
-data Error =
-    InvalidArgs -- ^ Invalid arguments
-  | CircularDependency Graph -- ^ Input is not a DAG
-  | InvalidInputFile -- ^ Error parsing input file
-  deriving (Eq)
-
+import           System.Exit                    ( exitSuccess )
 -- | Driver function
 main :: IO ()
 main = do
-  file <- gArgs
-  content <- readInput file
-  let dependencyList   = extractDepsFromFile content
+  file           <- gArgs
+  dependencyList <- readInput file
   let inputDepOrder    = map fst dependencyList
-  let constructedGraph = foldr addDeps M.empty dependencyList
+  let constructedGraph = makeDepGraph dependencyList
   acyclicCheck constructedGraph
-  printResult inputDepOrder constructedGraph
+  calcAndPrintResult inputDepOrder constructedGraph
   exitSuccess
 
--- | Get arguments
+-- | Get filename
 gArgs :: IO String
 gArgs = do
   args <- getArgs
-  when (length args /= 1) $ handleError InvalidArgs
-  return $ head args
+  case args of
+    [fileName] -> pure fileName
+    _          -> do
+      handleError InvalidArgs
+      pure []
 
--- | Read file
-readInput :: String -> IO [[String]]
+-- | Read filename
+readInput :: String -> IO [Dependencies]
 readInput file = do
   content <- map words . lines <$> readFile file
-  unless (checkInput content) $ handleError InvalidInputFile
-  return content
+  case parseInput content of
+    Left err -> do
+      handleError err
+      pure []
+    Right dependencyList -> pure dependencyList
 
 -- | Checking whether constructed graph is acyclic
-acyclicCheck :: Graph -> IO()
-acyclicCheck graph = do
-  let potentialCycles  = cyclicCheck graph
-  when (isJust potentialCycles)
-    $ handleError (CircularDependency $ fromJust potentialCycles)
+acyclicCheck :: Graph -> IO ()
+acyclicCheck graph =
+  for_ (cyclicCheck graph) (handleError . CircularDependency)
 
--- | Print result
-printResult :: [String] -> Graph -> IO()
-printResult inputDepOrder graph =   mapM_
-    (\i -> printOutput i . S.toList $ makeDependenciesList graph i)
-    inputDepOrder
-
--- | Error handler
-handleError :: Error -> IO ()
-handleError err = do
-  putStrLn $ case err of
-    InvalidArgs      -> "Usage: stack exec dep-lib <filename>"
-    InvalidInputFile -> "Error while parsing the file"
-    CircularDependency graph ->
-      "A cyclic dependency conflict present.\nDebugger found the following circular graph\n\n"
-        ++ Md.showTreeWith (\k x -> show (k, S.toList x)) True True graph
-  exitFailure
+-- | Calculate using `makeDepList` and print out the final result
+-- by traversing over input keys in order
+calcAndPrintResult :: [String] -> Graph -> IO ()
+calcAndPrintResult inputDepOrder graph =
+  for_ inputDepOrder $ \i -> printOutput i . S.toList $ makeDepList graph i
