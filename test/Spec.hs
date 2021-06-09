@@ -1,5 +1,6 @@
 module Main where
 
+import           Control.Monad
 import           Data.Foldable                  ( traverse_ )
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S
@@ -14,8 +15,19 @@ import           FileHandlers                   ( checkInput
                                                 , printOutput
                                                 )
 import           System.Exit                    ( exitFailure )
-import           Test.Tasty
-import           Test.Tasty.HUnit
+import           System.Random                  ( StdGen
+                                                , newStdGen
+                                                , random
+                                                , randomR
+                                                , randomRs
+                                                )
+import           Test.Tasty                     ( TestTree
+                                                , defaultMain
+                                                , testGroup
+                                                )
+import           Test.Tasty.HUnit               ( (@?=)
+                                                , testCase
+                                                )
 
 main :: IO ()
 main = do
@@ -43,6 +55,8 @@ tests = testGroup
       (makeTestGraph [("A", ["Z"]), ("X", ["Y"]), ("Y", ["Z"]), ("Z", ["A"])])
     , testCase "inputCycle3" $ cyclicCheck inputCycle3 @?= Just
       (makeTestGraph [("A", ["B"]), ("B", ["E"]), ("D", ["A"]), ("E", ["D"])])
+    , testCase "Stress Tests" $ do
+      stressTests
     ]
   ]
 
@@ -117,3 +131,34 @@ inputCycle3 = makeTestGraph
 
 makeTestGraph :: [(String, [String])] -> Graph
 makeTestGraph = foldr (\(x, y) g -> addDeps (x, S.fromList y) g) M.empty
+
+stressTests :: IO ()
+stressTests = do
+  replicateM_ 200 (fmap cyclicCheck $ randomDAG 100)
+  replicateM_ 200 (fmap testMakeDependenciesList $ randomDAG 100) -- max_nodes = 100, max_child_nodes = 100
+  return ()
+
+randomDAG :: Int -> IO Graph
+randomDAG n_nodes = do
+  a            <- randNodeName
+  n_nodes_seed <- newStdGen
+
+  let generated_nodes = node_gen n_nodes n_nodes_seed
+  node_names              <- generated_nodes
+  potential_node_children <- replicateM n_nodes generated_nodes
+
+  -- Using property of DAG of ascending order dependencies
+  let finalGraph = map (\(p, c_list) -> (p, filter (> p) c_list))
+                       (zip node_names potential_node_children)
+  return $ makeTestGraph finalGraph
+
+node_gen :: Int -> StdGen -> IO [String]
+node_gen max_nodes seed = do
+  let n_nodes = (fst (random seed :: (Int, StdGen))) `mod` max_nodes
+  replicateM n_nodes randNodeName
+
+randNodeName :: IO String
+randNodeName = do
+  seed <- newStdGen
+  -- Node names are 2 letters long
+  return (take 2 $ randomRs ('a', 'z') $ seed :: [Char])
