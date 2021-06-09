@@ -1,14 +1,11 @@
 module Main where
 import           Control.Monad                  ( when, unless )
 import qualified Data.Map                      as M
-                                                ( empty )
 import qualified Data.Map.Internal.Debug       as Md
-                                                ( showTreeWith )
 import           Data.Maybe                     ( fromJust
                                                 , isJust
                                                 )
 import qualified Data.Set                      as S
-                                                ( toList )
 import           DepParser                      ( Graph
                                                 , addDeps
                                                 , cyclicCheck
@@ -22,7 +19,6 @@ import           System.Environment             ( getArgs )
 import           System.Exit                    ( exitFailure
                                                 , exitSuccess
                                                 )
-
 -- | Error types
 data Error =
     InvalidArgs -- ^ Invalid arguments
@@ -33,30 +29,41 @@ data Error =
 -- | Driver function
 main :: IO ()
 main = do
-  -- Get arguments
-  args <- getArgs
-  when (length args /= 1) $ handleError InvalidArgs
-
-  -- Read file
-  content <- map words . lines <$> readFile (head args)
-  unless (checkInput content) $ handleError InvalidInputFile
-
-  -- Parse file to create intermediate Graph representation
+  file <- gArgs
+  content <- readInput file
   let dependencyList   = extractDepsFromFile content
   let inputDepOrder    = map fst dependencyList
   let constructedGraph = foldr addDeps M.empty dependencyList
+  acyclicCheck constructedGraph
+  printResult inputDepOrder constructedGraph
+  exitSuccess
 
-  -- Checking whether constructed graph is acyclic
-  let potentialCycles  = cyclicCheck constructedGraph
+-- | Get arguments
+gArgs :: IO String
+gArgs = do
+  args <- getArgs
+  when (length args /= 1) $ handleError InvalidArgs
+  return $ head args
+
+-- | Read file
+readInput :: String -> IO [[String]]
+readInput file = do
+  content <- map words . lines <$> readFile file
+  unless (checkInput content) $ handleError InvalidInputFile
+  return content
+
+-- | Checking whether constructed graph is acyclic
+acyclicCheck :: Graph -> IO()
+acyclicCheck graph = do
+  let potentialCycles  = cyclicCheck graph
   when (isJust potentialCycles)
     $ handleError (CircularDependency $ fromJust potentialCycles)
 
-  -- Print result
-  mapM_
-    (\i -> printOutput i . S.toList $ makeDependenciesList constructedGraph i)
+-- | Print result
+printResult :: [String] -> Graph -> IO()
+printResult inputDepOrder graph =   mapM_
+    (\i -> printOutput i . S.toList $ makeDependenciesList graph i)
     inputDepOrder
-
-  exitSuccess
 
 -- | Error handler
 handleError :: Error -> IO ()
