@@ -3,7 +3,17 @@ module Main where
 import           Control.Monad
 import           Data.Foldable                  ( traverse_ )
 import qualified Data.Map                      as M
+                                                ( empty
+                                                , fromList
+                                                , insert
+                                                , insertWith
+                                                , mapWithKey
+                                                )
 import qualified Data.Set                      as S
+                                                ( empty
+                                                , fromList
+                                                , union
+                                                )
 import           DepParser                      ( Dependencies
                                                 , Graph
                                                 , addDeps
@@ -12,7 +22,6 @@ import           DepParser                      ( Dependencies
                                                 )
 import           FileHandlers                   ( checkInput
                                                 , extractDepsFromFile
-                                                , printOutput
                                                 )
 import           System.Exit                    ( exitFailure )
 import           System.Random                  ( StdGen
@@ -33,6 +42,7 @@ main :: IO ()
 main = do
   defaultMain tests
 
+-- | List of tests
 tests :: TestTree
 tests = testGroup
   "Unit Tests"
@@ -55,9 +65,51 @@ tests = testGroup
       (makeTestGraph [("A", ["Z"]), ("X", ["Y"]), ("Y", ["Z"]), ("Z", ["A"])])
     , testCase "inputCycle3" $ cyclicCheck inputCycle3 @?= Just
       (makeTestGraph [("A", ["B"]), ("B", ["E"]), ("D", ["A"]), ("E", ["D"])])
-    , testCase "Stress Tests" $ do
-      stressTests
     ]
+  , testGroup
+    "testAddDep"
+    [ testCase "Same Parent New Node"
+    $   addDeps ("X", S.fromList ["J"]) inputGraph1
+    @?= M.insertWith S.union
+                     "X"
+                     (S.fromList ["J"])
+                     (M.insert "J" S.empty inputGraph1)
+    , testCase "Different Parent same node"
+    $   addDeps ("S", S.fromList ["B"]) inputGraph2
+    @?= M.insertWith S.union "S" (S.fromList ["B"]) inputGraph2
+    , testCase "New parent new node"
+    $   addDeps ("A", S.fromList ["B", "C", "D"]) inputGraph4
+    @?= M.fromList
+          [ ("A", S.fromList ["B", "C", "D"])
+          , ("B", S.empty)
+          , ("C", S.empty)
+          , ("D", S.empty)
+          ]
+    ]
+  , testGroup
+    "testInput"
+    [ testCase "input1" $ checkInput [["H", "depends", "on", "A"]] @?= True
+    , testCase "input2" $ checkInput [["incorrect", "input"]] @?= False
+    , -- Treat as (H,[]) in mapping instead of throwing error
+      testCase "input3" $ checkInput [["H", "depends", "on"]] @?= True
+    , testCase "input4" $ checkInput [["H", "depending", "on", "A"]] @?= False
+    , testCase "input5" $ checkInput [["H", "depending", "A"]] @?= False
+    ]
+  , testGroup
+    "extractDepsFromFile"
+    [ testCase "input1"
+    $   extractDepsFromFile [["H", "depends", "on", "A"]]
+    @?= [("H", S.fromList ["A"])]
+    , testCase "input2"
+    $   extractDepsFromFile [["H", "depends", "on", "A", "B"]]
+    @?= [("H", S.fromList ["A", "B"])]
+    , testCase "input3"
+    $   extractDepsFromFile
+          [["X", "depends", "on", "Y"], ["Y", "depends", "on", "X"]]
+    @?= [("X", S.fromList ["Y"]), ("Y", S.fromList ["X"])]
+    ]
+  , testCase "Stress Tests" $ do
+    stressTests 300 100
   ]
 
 testMakeDependenciesList :: Graph -> Graph
@@ -129,15 +181,21 @@ inputCycle3 = makeTestGraph
   , ("F", ["H"])
   ]
 
+-- | Make graph with mandatory empty leaf nodes (even for child dependencies)
 makeTestGraph :: [(String, [String])] -> Graph
 makeTestGraph = foldr (\(x, y) g -> addDeps (x, S.fromList y) g) M.empty
 
-stressTests :: IO ()
-stressTests = do
-  replicateM_ 200 (fmap cyclicCheck $ randomDAG 100)
-  replicateM_ 200 (fmap testMakeDependenciesList $ randomDAG 100) -- max_nodes = 100, max_child_nodes = 100
+-- | Stress testing cyclicCheck and makeDependenciesList (the most heavy usage)
+stressTests :: Int -> Int -> IO ()
+stressTests iterations n_nodes = do
+  replicateM_ iterations (fmap cyclicCheck $ randomDAG n_nodes)
+  replicateM_ iterations (fmap testMakeDependenciesList $ randomDAG n_nodes)
   return ()
 
+
+----- Tests helper functions
+
+-- | Generate random DAG based on maximum nodes/ children
 randomDAG :: Int -> IO Graph
 randomDAG n_nodes = do
   a            <- randNodeName
@@ -152,11 +210,13 @@ randomDAG n_nodes = do
                        (zip node_names potential_node_children)
   return $ makeTestGraph finalGraph
 
+-- | Generate n nodes
 node_gen :: Int -> StdGen -> IO [String]
 node_gen max_nodes seed = do
   let n_nodes = (fst (random seed :: (Int, StdGen))) `mod` max_nodes
   replicateM n_nodes randNodeName
 
+-- | Generate 2 letter random node name
 randNodeName :: IO String
 randNodeName = do
   seed <- newStdGen
