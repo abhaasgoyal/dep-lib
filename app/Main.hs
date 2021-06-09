@@ -19,7 +19,9 @@ import           FileHandlers                   ( checkInput
                                                 , printOutput
                                                 )
 import           System.Environment             ( getArgs )
-import           System.Exit                    ( exitSuccess, exitFailure )
+import           System.Exit                    ( exitFailure
+                                                , exitSuccess
+                                                )
 
 -- | Error types
 data Error =

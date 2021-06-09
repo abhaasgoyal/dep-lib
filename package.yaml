@@ -51,3 +51,4 @@ tests:
     - containers
     - tasty
     - tasty-hunit
+    - random

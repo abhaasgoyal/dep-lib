@@ -48,7 +48,7 @@ Cyclic graph check through topological sort (DFS)
 --}
 
 -- | Delete minimum node value in graph and remove from adjacency lists
--- Predicate - Atleast 1 leaf node is present
+-- Precondition - Atleast 1 leaf node is present
 deleteLeaf :: Graph -> Graph
 deleteLeaf g | null g    = M.empty
              | otherwise = M.map (S.delete k) (M.delete k g)
@@ -69,7 +69,8 @@ addDeps :: Dependencies -> Graph -> Graph
 addDeps deps@(_, v) g = uncurry (M.insertWith $ flip S.union) deps new_g
   where new_g = foldr (\i -> M.insertWith S.union i S.empty) g (S.toList v)
 
--- | Use adjacency sets to make the dependency list required for assignment
+-- | Use adjacency sets to make the dependency list required
+-- using DFS
 -- Precondition : input must be DAG
 makeDependenciesList :: Graph -> String -> S.Set String
 makeDependenciesList graph par

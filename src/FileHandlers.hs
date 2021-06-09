@@ -4,8 +4,9 @@ module FileHandlers
   , extractDepsFromFile
   ) where
 
-import qualified Data.Set as S
-import           DepParser
+import qualified Data.Set                      as S
+                                                ( fromList )
+import           DepParser                      ( Dependencies )
 
 printOutput :: String -> [String] -> IO ()
 printOutput parentDep childDep = do
