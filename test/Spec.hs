@@ -3,10 +3,12 @@ module Main where
 
 import           Control.Monad
 import           Data.Foldable                  ( traverse_ )
+import           Data.List.Split                ( chunksOf )
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as TIO
+
 import           DepGraph                       ( Dependencies
                                                 , Graph
                                                 , addDeps
@@ -17,6 +19,7 @@ import           ErrorHandling                  ( Error(..) )
 import           FileParser                     ( parseInput )
 import           System.Exit                    ( exitFailure )
 import           System.Random                  ( StdGen
+                                                , mkStdGen
                                                 , newStdGen
                                                 , random
                                                 , randomR
@@ -102,7 +105,8 @@ tests = testGroup
     @?= Right [("X", S.fromList ["Y"]), ("Y", S.fromList ["X"])]
     ]
   , testCase "Stress Tests" $ do
-    stressTests 300 100
+    -- 10000 iterations with 2000 max_nodes
+    stressTests 10000 2000
   ]
 
 testMakeDependenciesList :: Graph -> Graph
@@ -178,11 +182,11 @@ makeTestGraph :: [(T.Text, [T.Text])] -> Graph
 makeTestGraph = foldr (\(x, y) g -> addDeps (x, S.fromList y) g) M.empty
 
 -- | Stress testing cyclicCheck and makeDepList (the most heavy usage)
+-- With respect to iterations and maximum nodes allowed
 stressTests :: Int -> Int -> IO ()
 stressTests iterations n_nodes = do
   replicateM_ iterations $ cyclicCheck <$> randomDAG n_nodes
   replicateM_ iterations $ testMakeDependenciesList <$> randomDAG n_nodes
-  pure ()
 
 
 ----- Tests helper functions
@@ -192,24 +196,27 @@ randomDAG :: Int -> IO Graph
 randomDAG n_nodes = do
   n_nodes_seed <- newStdGen
 
-  let generated_nodes = node_gen n_nodes n_nodes_seed
+  let generated_nodes = nodeGen n_nodes n_nodes_seed
   node_names              <- generated_nodes
   potential_node_children <- replicateM n_nodes generated_nodes
 
   -- Using property of DAG of ascending order dependencies
-  let finalGraph = map (\(p, c_list) -> (p, filter (> p) c_list))
-                       (zip node_names potential_node_children)
+  let finalGraph = zipWith (\p c_list -> (p, filter (> p) c_list))
+                           node_names
+                           potential_node_children
   pure $ makeTestGraph finalGraph
 
 -- | Generate n nodes
-node_gen :: Int -> StdGen -> IO [T.Text]
-node_gen max_nodes seed = do
-  let n_nodes = (fst (random seed :: (Int, StdGen))) `mod` max_nodes
-  replicateM n_nodes randNodeName
+nodeGen :: Int -> StdGen -> IO [T.Text]
+nodeGen max_nodes seed = do
+  let (n_nodes, new_seed) = random seed :: (Int, StdGen)
+  randNodeNames (n_nodes `mod` max_nodes) new_seed
 
 -- | Generate 2 letter random node name
-randNodeName :: IO T.Text
-randNodeName = do
-  seed <- newStdGen
-  -- Node names are 2 letters long
-  pure (T.pack (take 2 $ randomRs ('a','z') $ seed :: [Char]))
+randNodeNames :: Int -> StdGen -> IO [T.Text]
+randNodeNames n seed = pure . map T.pack . chunksOf nameLen $ take
+  (nameLen * n)
+  (randomRs ('a', 'z') seed :: [Char])
+  where
+    -- Node names are 3 letters long
+        nameLen = 3

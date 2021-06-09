@@ -18,6 +18,6 @@ handleError err = do
     InvalidArgs      -> "Usage: stack exec dep-lib <filename>"
     InvalidInputFile -> "Error while parsing the file"
     CircularDependency graph ->
-      "A cyclic dependency conflict present.\nDebugger found the following circular graph\n\n" <>
+      "A cyclic dependency conflict present.\nDebugger found it near:\n\n" <>
         Md.showTreeWith (\k x -> show (k, S.toList x)) True True graph
   exitFailure
