@@ -1,7 +1,5 @@
--- |
-
 module ErrorHandling (Error(..), handleError) where
-import DepParser (Graph)
+import DepGraph (Graph)
 import qualified Data.Set as S
 import qualified Data.Map.Internal.Debug       as Md
 import           System.Exit                    ( exitFailure)
@@ -20,6 +18,6 @@ handleError err = do
     InvalidArgs      -> "Usage: stack exec dep-lib <filename>"
     InvalidInputFile -> "Error while parsing the file"
     CircularDependency graph ->
-      "A cyclic dependency conflict present.\nDebugger found the following circular graph\n\n"
-        ++ Md.showTreeWith (\k x -> show (k, S.toList x)) True True graph
+      "A cyclic dependency conflict present.\nDebugger found the following circular graph\n\n" <>
+        Md.showTreeWith (\k x -> show (k, S.toList x)) True True graph
   exitFailure

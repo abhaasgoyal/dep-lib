@@ -1,5 +1,5 @@
 {-# LANGUAGE TupleSections #-}
-module DepParser
+module DepGraph
   ( cyclicCheck
   , addDeps
   , makeDepList
@@ -11,12 +11,13 @@ module DepParser
 -- | Usage of map and set data structures to form adjacency sets
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S
+import qualified Data.Text                     as T
 
 -- | Dependency from single parent to multiple children
-type Dependencies = (String, S.Set String)
+type Dependencies = (T.Text, S.Set T.Text)
 
 -- | Graph structure through adjacency sets
-type Graph = M.Map String (S.Set String)
+type Graph = M.Map T.Text (S.Set T.Text)
 
 --------------------------------
 {--
@@ -58,9 +59,9 @@ makeDepGraph = foldr addDeps M.empty
 
 -- | Use adjacency sets to make the dependency list required
 -- using DFS
--- Generate output dependency list (based on input key)
+-- Generate output dependency list (based on input key and input graph)
 -- Precondition : input must be DAG
-makeDepList :: Graph -> String -> S.Set String
+makeDepList :: Graph -> T.Text -> S.Set T.Text
 makeDepList graph par = case M.lookup par graph of
   Nothing            -> S.empty
   Just neighbourList -> S.union

@@ -1,19 +1,20 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import           Control.Monad
 import           Data.Foldable                  ( traverse_ )
-import           Data.Map                       ( Map )
 import qualified Data.Map                      as M
-import           Data.Set                       ( Set )
 import qualified Data.Set                      as S
-import           DepParser                      ( Dependencies
+import qualified Data.Text                     as T
+import qualified Data.Text.IO                  as TIO
+import           DepGraph                       ( Dependencies
                                                 , Graph
                                                 , addDeps
                                                 , cyclicCheck
                                                 , makeDepList
                                                 )
 import           ErrorHandling                  ( Error(..) )
-import           FileHandlers                   ( parseInput )
+import           FileParser                     ( parseInput )
 import           System.Exit                    ( exitFailure )
 import           System.Random                  ( StdGen
                                                 , newStdGen
@@ -105,8 +106,7 @@ tests = testGroup
   ]
 
 testMakeDependenciesList :: Graph -> Graph
-testMakeDependenciesList graph =
-  M.mapWithKey (const . makeDepList graph) graph
+testMakeDependenciesList graph = M.mapWithKey (const . makeDepList graph) graph
 
 -- These graphs are known to be acyclic
 inputGraph1 :: Graph
@@ -174,7 +174,7 @@ inputCycle3 = makeTestGraph
   ]
 
 -- | Make graph with mandatory empty leaf nodes (even for child dependencies)
-makeTestGraph :: [(String, [String])] -> Graph
+makeTestGraph :: [(T.Text, [T.Text])] -> Graph
 makeTestGraph = foldr (\(x, y) g -> addDeps (x, S.fromList y) g) M.empty
 
 -- | Stress testing cyclicCheck and makeDepList (the most heavy usage)
@@ -202,14 +202,14 @@ randomDAG n_nodes = do
   pure $ makeTestGraph finalGraph
 
 -- | Generate n nodes
-node_gen :: Int -> StdGen -> IO [String]
+node_gen :: Int -> StdGen -> IO [T.Text]
 node_gen max_nodes seed = do
   let n_nodes = (fst (random seed :: (Int, StdGen))) `mod` max_nodes
   replicateM n_nodes randNodeName
 
 -- | Generate 2 letter random node name
-randNodeName :: IO String
+randNodeName :: IO T.Text
 randNodeName = do
   seed <- newStdGen
   -- Node names are 2 letters long
-  pure (take 2 $ randomRs ('a', 'z') $ seed :: [Char])
+  pure (T.pack (take 2 $ randomRs ('a','z') $ seed :: [Char]))

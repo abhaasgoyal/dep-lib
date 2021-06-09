@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d3450f2fca7cdf9936062b469131ee5d46ed9f58f59fad896eee87715a355a0b
+-- hash: 2ff0a92914bdb6b1d2b3cba078981e36e2e12d17f51b69e2d08720b587769c56
 
 name:           dep-lib
 version:        0.1.0.0
@@ -26,9 +26,9 @@ source-repository head
 
 library
   exposed-modules:
-      DepParser
+      DepGraph
       ErrorHandling
-      FileHandlers
+      FileParser
   other-modules:
       Paths_dep_lib
   hs-source-dirs:

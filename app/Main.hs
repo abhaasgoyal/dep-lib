@@ -2,19 +2,20 @@ module Main where
 import           Data.Foldable                  ( for_ )
 import qualified Data.Set                      as S
 import qualified Data.Text                     as T
-import           DepParser                      ( Dependencies
+import qualified Data.Text.IO                  as TIO
+import           DepGraph                       ( Dependencies
                                                 , Graph
-                                                , addDeps
                                                 , cyclicCheck
                                                 , makeDepGraph
                                                 , makeDepList
                                                 )
 import           ErrorHandling
-import           FileHandlers                   ( parseInput
+import           FileParser                     ( parseInput
                                                 , printOutput
                                                 )
 import           System.Environment             ( getArgs )
 import           System.Exit                    ( exitSuccess )
+
 -- | Driver function
 main :: IO ()
 main = do
@@ -27,7 +28,7 @@ main = do
   exitSuccess
 
 -- | Get filename
-gArgs :: IO String
+gArgs :: IO String -- String is ok instead of T.Text since a single filename
 gArgs = do
   args <- getArgs
   case args of
@@ -39,7 +40,7 @@ gArgs = do
 -- | Read filename
 readInput :: String -> IO [Dependencies]
 readInput file = do
-  content <- map words . lines <$> readFile file
+  content <- map T.words . T.lines <$> TIO.readFile file
   case parseInput content of
     Left err -> do
       handleError err
@@ -53,6 +54,6 @@ acyclicCheck graph =
 
 -- | Calculate using `makeDepList` and print out the final result
 -- by traversing over input keys in order
-calcAndPrintResult :: [String] -> Graph -> IO ()
+calcAndPrintResult :: [T.Text] -> Graph -> IO ()
 calcAndPrintResult inputDepOrder graph =
   for_ inputDepOrder $ \i -> printOutput i . S.toList $ makeDepList graph i
