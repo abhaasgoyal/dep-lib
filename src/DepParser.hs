@@ -1,7 +1,6 @@
 module DepParser
-  ( deleteLeaf
-  , checkLeafExists
-  , cyclicCheck
+  (
+    cyclicCheck
   , addDeps
   , makeDependenciesList
   , Dependencies
@@ -16,7 +15,6 @@ import qualified Data.Map as M
                            , empty
                            , filter
                            , findMin
-                           , fromList
                            , insertWith
                            , map
                            , notMember
@@ -27,7 +25,6 @@ import qualified Data.Set as S
                            ( Set
                            , delete
                            , empty
-                           , fromList
                            , null
                            , toList
                            , union

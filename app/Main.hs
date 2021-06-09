@@ -1,5 +1,5 @@
 module Main where
-import           Control.Monad                  ( when )
+import           Control.Monad                  ( when, unless )
 import qualified Data.Map                      as M
                                                 ( empty )
 import qualified Data.Map.Internal.Debug       as Md
@@ -39,7 +39,7 @@ main = do
 
   -- Read file
   content <- map words . lines <$> readFile (head args)
-  when (checkInput content) $ handleError InvalidInputFile
+  unless (checkInput content) $ handleError InvalidInputFile
 
   -- Parse file to create intermediate Graph representation
   let dependencyList   = extractDepsFromFile content

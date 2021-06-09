@@ -17,10 +17,11 @@ checkInput :: [[String]] -> Bool
 checkInput = all helpCheckDepend
  where
   helpCheckDepend :: [String] -> Bool
-  helpCheckDepend s | length s < 4                         = True
-                    | (s !! 1) ++ (s !! 2) == "depends on" = True
-                    | otherwise                            = False
+  helpCheckDepend s | length s < 3 = False
+                    | (s !! 1) == "depends" && (s !! 2) == "on" = True
+                    | otherwise    = False
 
 -- | Model dependencies read from the file
+-- Predicate: Input is correct
 extractDepsFromFile :: [[String]] -> [Dependencies]
 extractDepsFromFile = map (\s -> (head s, S.fromList $ drop 3 s))
