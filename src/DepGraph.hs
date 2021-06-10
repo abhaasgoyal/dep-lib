@@ -8,11 +8,11 @@ module DepGraph
   , Graph
   ) where
 
+import           Data.List                      ( foldl' )
 -- | Usage of map and set data structures to form adjacency sets
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S
 import qualified Data.Text                     as T
-
 -- | Dependency from single parent to multiple children
 type Dependencies = (T.Text, S.Set T.Text)
 
@@ -46,8 +46,8 @@ cyclicCheck g | M.null g                  = Nothing
 --------------------------------
 
 -- | Add nodes to graph
-addDeps :: Dependencies -> Graph -> Graph
-addDeps deps@(_, v) g = uncurry (M.insertWith S.union) deps new_g
+addDeps :: Graph -> Dependencies -> Graph
+addDeps g deps@(_, v) = uncurry (M.insertWith S.union) deps new_g
  where
   emptyNodes = M.fromList $ (, S.empty) <$> S.toList v
   new_g      = M.unionWith S.union g emptyNodes
@@ -55,7 +55,7 @@ addDeps deps@(_, v) g = uncurry (M.insertWith S.union) deps new_g
 
 -- | Generate input dependency graph
 makeDepGraph :: [Dependencies] -> Graph
-makeDepGraph = foldr addDeps M.empty
+makeDepGraph = foldl' addDeps M.empty
 
 -- | Use adjacency sets to make the dependency list required
 -- using DFS

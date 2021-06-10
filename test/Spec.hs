@@ -4,6 +4,7 @@ module Main where
 import           Control.Monad
 import           Data.Foldable                  ( traverse_ )
 import           Data.List.Split                ( chunksOf )
+import Data.List (foldl')
 import qualified Data.Map                      as M
 import qualified Data.Set                      as S
 import qualified Data.Text                     as T
@@ -64,16 +65,16 @@ tests = testGroup
   , testGroup
     "testAddDep"
     [ testCase "Same Parent New Node"
-    $   addDeps ("X", S.fromList ["J"]) inputGraph1
+    $   addDeps inputGraph1 ("X", S.fromList ["J"])
     @?= M.insertWith S.union
                      "X"
                      (S.fromList ["J"])
                      (M.insert "J" S.empty inputGraph1)
     , testCase "Different Parent same node"
-    $   addDeps ("S", S.fromList ["B"]) inputGraph2
+    $   addDeps inputGraph2 ("S", S.fromList ["B"])
     @?= M.insertWith S.union "S" (S.fromList ["B"]) inputGraph2
     , testCase "New parent new node"
-    $   addDeps ("A", S.fromList ["B", "C", "D"]) inputGraph4
+    $   addDeps inputGraph4 ("A", S.fromList ["B", "C", "D"])
     @?= M.fromList
           [ ("A", S.fromList ["B", "C", "D"])
           , ("B", S.empty)
@@ -179,7 +180,7 @@ inputCycle3 = makeTestGraph
 
 -- | Make graph with mandatory empty leaf nodes (even for child dependencies)
 makeTestGraph :: [(T.Text, [T.Text])] -> Graph
-makeTestGraph = foldr (\(x, y) g -> addDeps (x, S.fromList y) g) M.empty
+makeTestGraph = foldl' (\g (x, y) -> addDeps g (x, S.fromList y)) M.empty
 
 -- | Stress testing cyclicCheck and makeDepList (the most heavy usage)
 -- With respect to iterations and maximum nodes allowed
