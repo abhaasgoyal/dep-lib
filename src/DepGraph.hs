@@ -31,7 +31,7 @@ Cyclic graph check through topological sort (DFS)
 deleteMinLeaf :: Graph -> Graph
 deleteMinLeaf g | null g    = M.empty
                 | otherwise = M.map (S.delete k) (M.delete k g)
-  where (k, _) = M.findMin (M.filter S.null g) -- delete with condition of left node
+  where (k, _) = M.findMin (M.filter S.null g) -- Precondition must be satisfied
 
 -- | Check whether any leaf node exists
 checkLeavesExists :: Graph -> Bool

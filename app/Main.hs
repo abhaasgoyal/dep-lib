@@ -9,7 +9,9 @@ import           DepGraph                       ( Dependencies
                                                 , makeDepGraph
                                                 , makeDepList
                                                 )
-import           ErrorHandling
+import           ErrorHandling                  ( Error(..)
+                                                , handleError
+                                                )
 import           FileParser                     ( parseInput
                                                 , printOutput
                                                 )
